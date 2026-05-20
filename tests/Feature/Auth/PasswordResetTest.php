@@ -4,7 +4,9 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
@@ -18,6 +20,7 @@ class PasswordResetTest extends TestCase
         parent::setUp();
 
         $this->skipUnlessFortifyHas(Features::resetPasswords());
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_reset_password_link_screen_can_be_rendered(): void
@@ -33,9 +36,21 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create();
 
-        $this->post(route('password.request'), ['email' => $user->email]);
+        $this->post(route('password.email'), ['email' => $user->email])
+            ->assertSessionHas('status', 'If this email is eligible, password reset instructions will be sent shortly.');
 
         Notification::assertSentTo($user, ResetPassword::class);
+    }
+
+    public function test_reset_password_request_uses_generic_success_for_unknown_email(): void
+    {
+        Notification::fake();
+
+        $this->post(route('password.email'), ['email' => 'unknown@example.com'])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'If this email is eligible, password reset instructions will be sent shortly.');
+
+        Notification::assertNothingSent();
     }
 
     public function test_reset_password_screen_can_be_rendered(): void
@@ -44,7 +59,7 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create();
 
-        $this->post(route('password.request'), ['email' => $user->email]);
+        $this->post(route('password.email'), ['email' => $user->email]);
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
             $response = $this->get(route('password.reset', $notification->token));
@@ -61,7 +76,7 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create();
 
-        $this->post(route('password.request'), ['email' => $user->email]);
+        $this->post(route('password.email'), ['email' => $user->email]);
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
             $response = $this->post(route('password.update'), [
@@ -77,5 +92,34 @@ class PasswordResetTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_microsoft_only_users_can_not_reset_passwords(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'must_use_microsoft_login' => true,
+        ]);
+
+        $originalPassword = $user->password;
+
+        $this->post(route('password.email'), ['email' => $user->email])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'If this email is eligible, password reset instructions will be sent shortly.');
+
+        Notification::assertNotSentTo($user, ResetPassword::class);
+
+        $token = app('auth.password.broker')->createToken($user);
+
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertSame($originalPassword, $user->refresh()->password);
+        $this->assertFalse(Hash::check('new-password', $user->password));
     }
 }

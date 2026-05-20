@@ -48,6 +48,31 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_microsoft_only_users_can_not_authenticate_with_password(): void
+    {
+        $user = User::factory()->create([
+            'must_use_microsoft_login' => true,
+        ]);
+
+        $response = $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertSessionHasErrorsIn('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_legacy_null_microsoft_login_flag_is_treated_as_false(): void
+    {
+        $user = new User([
+            'must_use_microsoft_login' => null,
+        ]);
+
+        $this->assertFalse($user->mustUseMicrosoftLogin());
+    }
+
     public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge(): void
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());

@@ -54,6 +54,21 @@ class SecurityTest extends TestCase
         $response->assertRedirect(route('password.confirm'));
     }
 
+    public function test_microsoft_only_security_page_does_not_require_password_confirmation(): void
+    {
+        $user = User::factory()->create([
+            'must_use_microsoft_login' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('security.edit'))
+            ->assertOk()
+            ->assertSee('This account is enforced to sign in with Microsoft Entra')
+            ->assertDontSee('Current password')
+            ->assertDontSee('Manage your passkeys for passwordless sign-in')
+            ->assertDontSee('Add a passkey to sign in without a password');
+    }
+
     public function test_security_settings_page_renders_without_two_factor_when_feature_is_disabled(): void
     {
         config(['fortify.features' => []]);
@@ -110,6 +125,37 @@ class SecurityTest extends TestCase
         $response->assertHasNoErrors();
 
         $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
+    }
+
+    public function test_microsoft_only_users_can_not_update_passwords(): void
+    {
+        $user = User::factory()->create([
+            'must_use_microsoft_login' => true,
+        ]);
+
+        $this->actingAs($user);
+
+        $response = Livewire::test('pages::settings.security')
+            ->set('current_password', 'password')
+            ->set('password', 'new-password')
+            ->set('password_confirmation', 'new-password')
+            ->call('updatePassword');
+
+        $response->assertHasErrors(['password']);
+
+        $this->assertTrue(Hash::check('password', $user->refresh()->password));
+    }
+
+    public function test_microsoft_only_users_can_not_access_passkey_management_endpoints(): void
+    {
+        $user = User::factory()->create([
+            'must_use_microsoft_login' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->get(route('passkey.registration-options'))
+            ->assertForbidden();
     }
 
     public function test_correct_password_must_be_provided_to_update_password(): void

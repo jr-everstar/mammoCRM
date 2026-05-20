@@ -53,6 +53,8 @@ new #[Title('Security settings')] class extends Component {
      */
     public function mount(DisableTwoFactorAuthentication $disableTwoFactorAuthentication): void
     {
+        $microsoftOnly = auth()->user()->mustUseMicrosoftLogin();
+
         /* @chisel-2fa */
         $this->canManageTwoFactor = Features::canManageTwoFactorAuthentication();
 
@@ -67,7 +69,7 @@ new #[Title('Security settings')] class extends Component {
         /* @end-chisel-2fa */
 
         /* @chisel-passkeys */
-        $this->canManagePasskeys = Features::canManagePasskeys();
+        $this->canManagePasskeys = Features::canManagePasskeys() && ! $microsoftOnly;
 
         if ($this->canManagePasskeys) {
             $this->loadPasskeys();
@@ -80,6 +82,12 @@ new #[Title('Security settings')] class extends Component {
      */
     public function updatePassword(): void
     {
+        if (auth()->user()->mustUseMicrosoftLogin()) {
+            throw ValidationException::withMessages([
+                'password' => __('This account must sign in with Microsoft Entra.'),
+            ]);
+        }
+
         try {
             $validated = $this->validate([
                 'current_password' => $this->currentPasswordRules(),
@@ -106,6 +114,12 @@ new #[Title('Security settings')] class extends Component {
      */
     public function loadPasskeys(): void
     {
+        if (auth()->user()->mustUseMicrosoftLogin()) {
+            $this->passkeys = [];
+
+            return;
+        }
+
         $this->passkeys = auth()->user()->passkeys()
             ->select(['id', 'name', 'credential', 'created_at', 'last_used_at'])
             ->latest()
@@ -125,6 +139,8 @@ new #[Title('Security settings')] class extends Component {
      */
     public function confirmDelete(int $passkeyId): void
     {
+        abort_if(auth()->user()->mustUseMicrosoftLogin(), 403);
+
         $passkey = auth()->user()->passkeys()->findOrFail($passkeyId);
 
         $this->deletingPasskeyId = $passkey->id;
@@ -137,6 +153,8 @@ new #[Title('Security settings')] class extends Component {
      */
     public function deletePasskey(DeletePasskey $deletePasskey): void
     {
+        abort_if(auth()->user()->mustUseMicrosoftLogin(), 403);
+
         if (! $this->deletingPasskeyId) {
             return;
         }
@@ -188,40 +206,46 @@ new #[Title('Security settings')] class extends Component {
     <flux:heading class="sr-only">{{ __('Security settings') }}</flux:heading>
 
     <x-pages::settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
-        <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
-            <flux:input
-                wire:model="current_password"
-                :label="__('Current password')"
-                type="password"
-                required
-                autocomplete="current-password"
-                viewable
-            />
-            <flux:input
-                wire:model="password"
-                :label="__('New password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
-                viewable
-            />
-            <flux:input
-                wire:model="password_confirmation"
-                :label="__('Confirm password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
-                viewable
-            />
-
-            <div class="flex items-center gap-4">
-                <flux:button variant="primary" type="submit" data-test="update-password-button">
-                    {{ __('Save') }}
-                </flux:button>
+        @if (auth()->user()->mustUseMicrosoftLogin())
+            <div class="mt-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-100">
+                {{ __('This account is enforced to sign in with Microsoft Entra. Local password changes and passkeys are disabled.') }}
             </div>
-        </form>
+        @else
+            <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
+                <flux:input
+                    wire:model="current_password"
+                    :label="__('Current password')"
+                    type="password"
+                    required
+                    autocomplete="current-password"
+                    viewable
+                />
+                <flux:input
+                    wire:model="password"
+                    :label="__('New password')"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
+                    viewable
+                />
+                <flux:input
+                    wire:model="password_confirmation"
+                    :label="__('Confirm password')"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
+                    viewable
+                />
+
+                <div class="flex items-center gap-4">
+                    <flux:button variant="primary" type="submit" data-test="update-password-button">
+                        {{ __('Save') }}
+                    </flux:button>
+                </div>
+            </form>
+        @endif
 
         {{-- @chisel-2fa --}}
         @if ($canManageTwoFactor)
