@@ -79,8 +79,9 @@ class CommissionCalculator
         });
     }
 
-    public function simulate(array $signedPlanCounts, bool $adminMonthlyTierOverride = false, float $operationCostBufferPercentage = 0): array
+    public function simulate(array $signedPlanCounts, bool $adminMonthlyTierOverride = false): array
     {
+        $operationCostBufferPercentage = 25.0;
         $plans = SalesPlan::query()
             ->where('is_active', true)
             ->whereIn('id', array_keys($signedPlanCounts))

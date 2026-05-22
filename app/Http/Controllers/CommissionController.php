@@ -43,14 +43,12 @@ class CommissionController extends Controller
         $data = $request->validate([
             'plan_counts' => ['nullable', 'array'],
             'plan_counts.*' => ['nullable', 'integer', 'min:0', 'max:999'],
-            'operation_cost_buffer_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'admin_monthly_tier_override' => ['nullable', 'boolean'],
         ]);
 
         $simulation = $calculator->simulate(
             $data['plan_counts'] ?? [],
-            (bool) ($data['admin_monthly_tier_override'] ?? false),
-            (float) ($data['operation_cost_buffer_percentage'] ?? 0)
+            (bool) ($data['admin_monthly_tier_override'] ?? false)
         );
 
         return view('commissions.simulator', [

@@ -29,21 +29,10 @@
                 @endforeach
             </div>
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-end">
-                    <flux:input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        name="operation_cost_buffer_percentage"
-                        label="營運成本緩衝 (%)"
-                        value="{{ old('operation_cost_buffer_percentage', $simulation['operation_cost_buffer_percentage'] ?? 0) }}"
-                    />
-                    <label class="flex items-center gap-2 pb-2 text-sm">
-                        <input type="checkbox" name="admin_monthly_tier_override" value="1" @checked(old('admin_monthly_tier_override', $simulation['admin_monthly_tier_override'] ?? false))>
-                        強制啟用階梯獎金
-                    </label>
-                </div>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="admin_monthly_tier_override" value="1" @checked(old('admin_monthly_tier_override', $simulation['admin_monthly_tier_override'] ?? false))>
+                    強制啟用階梯獎金
+                </label>
                 <flux:button type="submit" icon="calculator">執行模擬</flux:button>
             </div>
         </form>
@@ -54,7 +43,7 @@
                 <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">簽約銷售額</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['signed_sales_amount'], 2) }}</div></div>
                 <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">佣金前毛利</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['pre_commission_gross_margin'], 2) }}</div></div>
                 <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">總佣金</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['total_commission'], 2) }}</div></div>
-                <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">營運成本緩衝</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['operation_cost_buffer'], 2) }}</div></div>
+                <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">營運成本緩衝 (25%)</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['operation_cost_buffer'], 2) }}</div></div>
                 <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">公司淨利潤</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['company_net_profit'], 2) }}</div></div>
             </div>
 
