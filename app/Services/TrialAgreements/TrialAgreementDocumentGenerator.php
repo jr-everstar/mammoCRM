@@ -4,8 +4,11 @@ namespace App\Services\TrialAgreements;
 
 use App\Models\Asset;
 use App\Models\TrialAgreement;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\TemplateProcessor;
+use RuntimeException;
 
 class TrialAgreementDocumentGenerator
 {
@@ -32,9 +35,34 @@ class TrialAgreementDocumentGenerator
         }
 
         $template->saveAs($absoluteDocxPath);
-        $this->pdfConverter->convert($absoluteDocxPath, $absolutePdfPath);
+
+        try {
+            $this->pdfConverter->convert($absoluteDocxPath, $absolutePdfPath);
+        } catch (RuntimeException) {
+            $this->generatePdfFromHtml($agreement, $absolutePdfPath);
+        }
 
         return [$docxPath, $pdfPath];
+    }
+
+    private function generatePdfFromHtml(TrialAgreement $agreement, string $absolutePdfPath): void
+    {
+        if (! is_dir(dirname($absolutePdfPath))) {
+            mkdir(dirname($absolutePdfPath), 0775, true);
+        }
+
+        $options = new Options;
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', false);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml(view('trial-agreements.pdf', [
+            'agreement' => $agreement->loadMissing(['account', 'contact', 'salesPlan', 'salesUser', 'accountManager', 'assets']),
+        ])->render());
+        $dompdf->setPaper('A4');
+        $dompdf->render();
+
+        file_put_contents($absolutePdfPath, $dompdf->output());
     }
 
     private function values(TrialAgreement $agreement): array

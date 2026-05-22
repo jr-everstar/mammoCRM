@@ -79,7 +79,7 @@ class CommissionCalculator
         });
     }
 
-    public function simulate(array $signedPlanCounts, bool $adminMonthlyTierOverride = false): array
+    public function simulate(array $signedPlanCounts, bool $adminMonthlyTierOverride = false, float $operationCostBufferPercentage = 0): array
     {
         $plans = SalesPlan::query()
             ->where('is_active', true)
@@ -94,6 +94,7 @@ class CommissionCalculator
             'pre_commission_gross_margin' => 0.0,
         ];
         $items = collect();
+        $signedSalesAmount = 0.0;
 
         foreach ($signedPlanCounts as $planId => $count) {
             $plan = $plans->get((int) $planId);
@@ -103,6 +104,7 @@ class CommissionCalculator
             }
 
             foreach (range(1, (int) $count) as $index) {
+                $signedSalesAmount += (float) $plan->selling_price;
                 $deal = new Deal([
                     'sales_plan_id' => $plan->id,
                     'deal_type' => 'new_deal',
@@ -146,10 +148,14 @@ class CommissionCalculator
         $hpaBonus = $this->highPlanAcceleratorBonus($deals);
         $totalCommission = $totals['basic_commission'] + $totals['renewal_upgrade_commission'] + $monthlyTierBonus + $hpaBonus;
         $preMargin = $totals['pre_commission_gross_margin'];
+        $postCommissionMargin = $preMargin - $totalCommission;
+        $operationCostBuffer = round($signedSalesAmount * $operationCostBufferPercentage / 100, 2);
 
         return [
             'admin_monthly_tier_override' => $adminMonthlyTierOverride,
+            'operation_cost_buffer_percentage' => $operationCostBufferPercentage,
             'signed_plan_count' => $deals->count(),
+            'signed_sales_amount' => $signedSalesAmount,
             'plan_counts' => collect($signedPlanCounts)->map(fn ($count) => (int) $count)->all(),
             'monthly_qualified_sales_amount' => $totals['monthly_qualified_sales_amount'],
             'basic_commission' => $totals['basic_commission'],
@@ -158,7 +164,9 @@ class CommissionCalculator
             'high_plan_accelerator_bonus' => $hpaBonus,
             'total_commission' => $totalCommission,
             'pre_commission_gross_margin' => $preMargin,
-            'post_commission_remaining_gross_margin' => $preMargin - $totalCommission,
+            'post_commission_remaining_gross_margin' => $postCommissionMargin,
+            'operation_cost_buffer' => $operationCostBuffer,
+            'company_net_profit' => $postCommissionMargin - $operationCostBuffer,
             'incentive_ratio' => $preMargin > 0 ? $totalCommission / $preMargin : 0,
             'items' => $items->values(),
         ];

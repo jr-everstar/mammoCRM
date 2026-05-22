@@ -43,11 +43,16 @@ it('simulates manual signed plan counts without creating runs or updating deal s
             'plan_counts' => [
                 $planC->id => 2,
             ],
+            'operation_cost_buffer_percentage' => 10,
         ])
         ->assertOk()
         ->assertSee('HK$32,000.00')
+        ->assertSee('HK$28,800.00')
+        ->assertSee('HK$83,200.00')
         ->assertSee('PLAN C')
-        ->assertSee('簽約方案');
+        ->assertSee('簽約方案')
+        ->assertSee('公司淨利潤')
+        ->assertSee('營運成本緩衝');
 
     expect(CommissionRun::count())->toBe(0)
         ->and(Deal::pluck('commission_status', 'id')->all())->toBe($originalStatuses);

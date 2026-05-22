@@ -110,7 +110,11 @@
                             <div><dt class="text-xs font-medium text-slate-500">EverStar AM</dt><dd class="mt-1 text-slate-950">{{ $opportunity->assignedSales?->name ?: '-' }}</dd></div>
                         </dl>
                     </div>
-                    <flux:button type="submit" class="w-full" @disabled(! $hasRequiredAssets)>Generate PDF</flux:button>
+                    @if($hasRequiredAssets)
+                        <flux:button type="submit" class="w-full">Generate PDF</flux:button>
+                    @else
+                        <flux:button type="button" class="w-full" disabled>Generate PDF</flux:button>
+                    @endif
                 </div>
             </div>
         </form>

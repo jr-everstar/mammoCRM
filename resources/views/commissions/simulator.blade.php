@@ -29,20 +29,33 @@
                 @endforeach
             </div>
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="admin_monthly_tier_override" value="1" @checked(old('admin_monthly_tier_override', $simulation['admin_monthly_tier_override'] ?? false))>
-                    強制啟用階梯獎金
-                </label>
+                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-end">
+                    <flux:input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        name="operation_cost_buffer_percentage"
+                        label="營運成本緩衝 (%)"
+                        value="{{ old('operation_cost_buffer_percentage', $simulation['operation_cost_buffer_percentage'] ?? 0) }}"
+                    />
+                    <label class="flex items-center gap-2 pb-2 text-sm">
+                        <input type="checkbox" name="admin_monthly_tier_override" value="1" @checked(old('admin_monthly_tier_override', $simulation['admin_monthly_tier_override'] ?? false))>
+                        強制啟用階梯獎金
+                    </label>
+                </div>
                 <flux:button type="submit" icon="calculator">執行模擬</flux:button>
             </div>
         </form>
 
         @if($simulation)
-            <div class="grid gap-4 md:grid-cols-4">
+            <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                 <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">簽約方案</div><div class="mt-2 text-2xl font-semibold">{{ $simulation['signed_plan_count'] }}</div></div>
-                <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">合資格銷售額</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['monthly_qualified_sales_amount'], 2) }}</div></div>
+                <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">簽約銷售額</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['signed_sales_amount'], 2) }}</div></div>
                 <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">佣金前毛利</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['pre_commission_gross_margin'], 2) }}</div></div>
                 <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">總佣金</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['total_commission'], 2) }}</div></div>
+                <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">營運成本緩衝</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['operation_cost_buffer'], 2) }}</div></div>
+                <div class="mc-stat"><div class="text-xs font-medium uppercase text-slate-500">公司淨利潤</div><div class="mt-2 text-2xl font-semibold">HK${{ number_format($simulation['company_net_profit'], 2) }}</div></div>
             </div>
 
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -61,6 +74,14 @@
                 <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
                     <div class="text-sm text-slate-500">高方案加速獎金</div>
                     <div class="mt-1 text-xl font-semibold">HK${{ number_format($simulation['high_plan_accelerator_bonus'], 2) }}</div>
+                </div>
+                <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div class="text-sm text-slate-500">合資格銷售額</div>
+                    <div class="mt-1 text-xl font-semibold">HK${{ number_format($simulation['monthly_qualified_sales_amount'], 2) }}</div>
+                </div>
+                <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div class="text-sm text-slate-500">佣金後剩餘毛利</div>
+                    <div class="mt-1 text-xl font-semibold">HK${{ number_format($simulation['post_commission_remaining_gross_margin'], 2) }}</div>
                 </div>
             </div>
 

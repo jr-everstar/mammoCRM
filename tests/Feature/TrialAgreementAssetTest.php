@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\TrialAgreements\PdfConverter;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -130,6 +131,21 @@ it('auto assigns available iPads and sensor pairs then reserves them', function 
         ->assertOk()
         ->assertSee('Trial Agreements 試用協議')
         ->assertSee($agreement->document_number);
+});
+
+it('generates a pdf through the html fallback when soffice is unavailable', function () {
+    $sales = User::where('email', 'sales@example.com')->firstOrFail();
+    $opportunity = Opportunity::where('opportunity_name', 'Harbour PLAN B New Deal')->firstOrFail();
+
+    $this->actingAs($sales)
+        ->post(route('trial-agreements.store'), trialPayload($opportunity))
+        ->assertRedirect(route('crm.show', ['opportunities', $opportunity->id]));
+
+    $agreement = TrialAgreement::firstOrFail();
+
+    expect($agreement->generated_pdf_path)->not->toBeNull()
+        ->and(Storage::disk('local')->exists($agreement->generated_pdf_path))->toBeTrue()
+        ->and(Storage::disk('local')->get($agreement->generated_pdf_path))->toStartWith('%PDF');
 });
 
 it('blocks trial agreement generation when required ipads are unavailable', function () {
